@@ -1,4 +1,4 @@
-import 'package:rideshare_driver/Models/address.dart';
+import 'package:rideshare/Models/address.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -89,7 +89,7 @@ class _SearchScreenState extends State<SearchScreen> {
             ],
           ),
           const SizedBox(
-            height: 10.0,
+            height: 16.0,
           ),
           Row(
             children: [
@@ -101,17 +101,14 @@ class _SearchScreenState extends State<SearchScreen> {
                     child: TextFormField(
                       enabled: false,
                       decoration: InputDecoration(
-                          enabledBorder: const UnderlineInputBorder(
-                            borderSide: BorderSide(color: Colors.greenAccent),
-                          ),
-                          focusedBorder: const UnderlineInputBorder(
-                              borderSide:
-                                  BorderSide(color: Colors.greenAccent)),
+                          disabledBorder: StylesConst.textBorder,
+                          fillColor: ColorsConst.grey100,
+                          filled: true,
                           label:
                               Text(pickUpTextEditingController.text.toString()),
-                          labelStyle: StylesConst.labelStyle,
                           hintStyle: StylesConst.hintStyle),
-                      style: const TextStyle(fontSize: 14.0),
+                      style: const TextStyle(
+                          fontSize: 14.0, fontWeight: FontWeight.w600),
                     ),
                   ),
                 ),
@@ -132,15 +129,14 @@ class _SearchScreenState extends State<SearchScreen> {
                       onChanged: (val) {
                         findPlace(val);
                       },
-                      decoration: const InputDecoration(
-                        enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.greenAccent),
-                        ),
-                        focusedBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(color: Colors.greenAccent)),
-                        label: Text(
-                          "Destination",
-                          style: TextStyle(fontSize: 14),
+                      decoration: InputDecoration(
+                        enabledBorder: StylesConst.textBorder,
+                        focusedBorder: StylesConst.textBorder,
+                        filled: true,
+                        label: const Text(
+                          "Where are you going ?",
+                          style: TextStyle(
+                              fontSize: 14, fontWeight: FontWeight.w600),
                         ),
                         labelStyle: StylesConst.labelStyle,
                       ),
@@ -174,11 +170,10 @@ class _SearchScreenState extends State<SearchScreen> {
         var placesList = (predictions as List)
             .map((e) => PlacePredictions.fromJson(e))
             .toList();
-        if (mounted) {
-          setState(() {
-            placePredictionList = placesList;
-          });
-        }
+
+        setState(() {
+          placePredictionList = placesList;
+        });
       }
     }
   }
@@ -196,7 +191,6 @@ class PredictionTile extends StatelessWidget {
       onPressed: () {
         getPlaceAddress(placePredictions.place_id, context);
       },
-      // ignore: avoid_unnecessary_containers
       child: Container(
         child: Column(children: [
           const SizedBox(
@@ -204,6 +198,13 @@ class PredictionTile extends StatelessWidget {
           ),
           Row(
             children: [
+              const SizedBox(
+                width: 14.0,
+              ),
+              const Icon(
+                Icons.location_on,
+                color: Colors.grey,
+              ),
               const SizedBox(
                 width: 14.0,
               ),

@@ -1,28 +1,59 @@
-import 'dart:math';
-
-import 'package:rideshare_driver/Constants/widgets/loading.dart';
-import 'package:rideshare_driver/config_map.dart';
-import 'package:rideshare_driver/global/global.dart';
-import 'package:rideshare_driver/main.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:rideshare/Constants/styles/colors.dart';
+import 'package:rideshare/Constants/widgets/loading.dart';
+import 'package:rideshare/Views/tabPages/bookedTripDetails.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
-import 'package:rideshare_driver/Constants/styles/colors.dart';
-import 'package:rideshare_driver/Views/data%20handler/app_data.dart';
+import 'package:rideshare/Views/data%20handler/app_data.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
-import 'package:fluttericon/entypo_icons.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
-import '../../Constants/widgets/toast.dart';
-import '../../widgets/progress_dialog.dart';
+import '../../Models/request.dart';
+import '../../Models/trip.dart';
+import '../../global/global.dart';
 import '../assistants/assistant_methods.dart';
 import '../trips/searchPickUp.dart';
 import '../trips/search_screen.dart';
+import 'available_drivers.dart';
+
+class GetRequests {
+  final databaseReference = FirebaseDatabase.instance.ref('requests');
+
+  Future<List<Request>> getRequests() async {
+    List<Request> itemList = [];
+    // Get a reference to the Firebase database
+
+    try {
+      // Retrieve all items with the specified color
+      final dataSnapshot = await databaseReference
+          .orderByChild('userID')
+          .equalTo(currentFirebaseUser!.uid.toString())
+          .once();
+
+      // Convert the retrieved data to a list of Item objects
+
+      Map<dynamic, dynamic> values =
+          dataSnapshot.snapshot.value as Map<dynamic, dynamic>;
+      values.forEach((key, value) {
+        final item = Request(
+            requestID: value['requestID'],
+            tripID: value['tripID'],
+            driverID: value['driverID'],
+            userID: value['userID'],
+            status: value['status']);
+        itemList.add(item);
+      });
+    } catch (e) {
+      // Log the error and return an empty list
+      print('Error: $e');
+    }
+    return itemList;
+  }
+}
 
 class Dashboard extends StatefulWidget {
   static const String idScreen = "dashboard";
@@ -34,7 +65,9 @@ class Dashboard extends StatefulWidget {
 }
 
 class _DashboardState extends State<Dashboard> {
-  static const String idScreen = "dashboard";
+  final GetRequests getRequests = GetRequests();
+  List<Request> requests = [];
+  List<Request> acceptedRequest = [];
   User? currentUser;
   final Completer<GoogleMapController> _controllerGoogleMap = Completer();
   late GoogleMapController newgoogleMapController;
@@ -48,7 +81,7 @@ class _DashboardState extends State<Dashboard> {
   late Position currentPosition;
   var geoLocator = Geolocator();
   double bottomPaddingMap = 0;
-
+  bool isLoading = false;
   String? price;
 
   TextEditingController pickUpLocationController = TextEditingController();
@@ -59,58 +92,30 @@ class _DashboardState extends State<Dashboard> {
   TextEditingController destinationLatitudeController = TextEditingController();
   TextEditingController destinationLongitudeController =
       TextEditingController();
-  TextEditingController dateController = TextEditingController();
-  TextEditingController timeController = TextEditingController();
-  TextEditingController estimatedCostController = TextEditingController();
-  Map<String, List<String>> dropdownMap = {
-    'Car': ['1 Passenger', '2 Passengers', '3 Passengers', '4 Passengers'],
-    'Van': [
-      '1 Passenger',
-      '2 Passengers',
-      '3 Passengers',
-      '4 Passengers',
-      '5 Passengers',
-      '6 Passengers',
-      '7 Passengers',
-      '8 Passengers',
-      '9 Passengers',
-      '10 Passengers',
-      '11 Passengers',
-      '12 Passengers'
-    ],
-    'MiniVan': [
-      '1 Passenger',
-      '2 Passengers',
-      '3 Passengers',
-      '4 Passengers',
-      '5 Passengers',
-      '6 Passengers',
-      '7 Passengers'
-    ]
-  };
 
-  String currentSelectedValue = '';
-  List<String> dropdownItems = [];
-  String? carType;
-
-  late String passengers = '';
-  final _formKey = GlobalKey<FormState>();
+  late String passengers;
   Set<Marker> markersSet = {};
   Set<Circle> circlesSet = {};
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
-    DatabaseReference starCountRef = FirebaseDatabase.instance
-        .ref('drivers/${currentFirebaseUser!.uid}/car_type');
-    starCountRef.onValue.listen((DatabaseEvent event) {
-      final data = event.snapshot.value.toString();
-      carType = data;
-      print("status: " + data.toString());
+    isLoading = true;
+    getRequest().then((_) {
+      setState(() {
+        isLoading = false;
+      });
     });
-    String currentSelectedValue = 'Car';
-    dropdownItems = dropdownMap['Car']!;
+  }
+
+  Future<void> getRequest() async {
+    List<Request> requests = await getRequests.getRequests();
+    setState(() {
+      this.requests = requests;
+      for (var r in requests) {
+        if (r.status == 'accepted') acceptedRequest.add(r);
+      }
+    });
   }
 
   void locatePosition() async {
@@ -135,12 +140,22 @@ class _DashboardState extends State<Dashboard> {
         await AssistantMethods.searchCoordinateAddress(position, context);
   }
 
+  Future<void> refresh() async {
+    isLoading = true;
+    acceptedRequest.clear();
+    getRequest().then((_) {
+      setState(() {
+        isLoading = false;
+      });
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     String? pickUpLocation =
         Provider.of<AppData>(context).pickUpLocation?.placeName;
     pickUpLocationController.text = (pickUpLocation.toString() == 'null')
-        ? 'Retreiving Location...'
+        ? 'Retrieving Location...'
         : pickUpLocation.toString();
     String? destination =
         Provider.of<AppData>(context).dropOffLocation?.placeName;
@@ -160,423 +175,443 @@ class _DashboardState extends State<Dashboard> {
         Provider.of<AppData>(context).dropOffLocation?.longitude;
     destinationLongitudeController.text = destinationLongitude.toString();
 
-    return Scaffold(
-      body: Stack(
-        children: [
-          GoogleMap(
-            padding: EdgeInsets.only(bottom: bottomPaddingMap),
-            myLocationEnabled: true,
-            polylines: polylineSet,
-            zoomGesturesEnabled: true,
-            markers: markersSet,
-            circles: circlesSet,
-            zoomControlsEnabled: false,
-            mapType: MapType.normal,
-            mapToolbarEnabled: false,
-            myLocationButtonEnabled: true,
-            initialCameraPosition: _kGooglePlex,
-            onMapCreated: (GoogleMapController controller) {
-              _controllerGoogleMap.complete(controller);
-              newgoogleMapController = controller;
-              setState(() {
-                bottomPaddingMap = 300.0;
-              });
-              locatePosition();
-            },
-          ),
-          Positioned(
-              left: 0.0,
-              right: 0.0,
-              bottom: 0.0,
-              child: Container(
-                height: 250,
-                decoration: const BoxDecoration(
-                  color: ColorsConst.white,
-                  borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(18.0),
-                      topRight: Radius.circular(18.0)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.greenAccent,
-                      blurRadius: 10.0,
-                    ),
-                  ],
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(15.0),
-                  child: Column(
-                    children: [
-                      Row(
-                        children: <Widget>[
-                          Image.asset(
-                            "images/PickUpDestination.png",
-                            width: 20,
-                            height: 160,
+    // double destinationLatitude = 33.5467786;
+    // double destinationLongitude = 73.1839979;
+    return SafeArea(
+      child: Scaffold(
+        body: RefreshIndicator(
+          onRefresh: refresh,
+          child: Stack(
+            children: [
+              GoogleMap(
+                padding: EdgeInsets.only(bottom: bottomPaddingMap),
+                myLocationEnabled: true,
+                polylines: polylineSet,
+                zoomGesturesEnabled: true,
+                markers: markersSet,
+                circles: circlesSet,
+                zoomControlsEnabled: false,
+                mapType: MapType.normal,
+                mapToolbarEnabled: false,
+                myLocationButtonEnabled: true,
+                initialCameraPosition: _kGooglePlex,
+                onMapCreated: (GoogleMapController controller) {
+                  _controllerGoogleMap.complete(controller);
+                  newgoogleMapController = controller;
+                  setState(() {
+                    bottomPaddingMap = 300.0;
+                  });
+                  locatePosition();
+                },
+              ),
+              Positioned(
+                left: 0.0,
+                top: 0.0,
+                right: 0.0,
+                bottom: 0.0,
+                child: Container(
+                    color: ColorsConst.white,
+                    child: Stack(
+                      children: [
+                        Container(
+                          height: MediaQuery.of(context).size.height * 0.45,
+                          decoration: const BoxDecoration(
+                            image: DecorationImage(
+                              image: AssetImage("images/bg.jpg"),
+                              fit: BoxFit.cover,
+                            ),
                           ),
-                          Flexible(
-                            child: Padding(
-                              padding: const EdgeInsets.only(
-                                  left: 10.0, right: 15.0),
-                              child: Column(
-                                children: [
-                                  TextFormField(
-                                    controller: pickUpLocationController,
-                                    decoration: const InputDecoration(
-                                        enabledBorder: UnderlineInputBorder(
-                                          borderSide: BorderSide(
-                                              color: Colors.greenAccent),
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.all(25.0),
+                          child: Align(
+                            child: SizedBox(
+                              height: 250,
+                              child: Card(
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(10)),
+                                elevation: 10.0,
+                                child: Column(children: [
+                                  Padding(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Row(
+                                      children: <Widget>[
+                                        Image.asset(
+                                          "images/PickUpDestination.png",
+                                          width: 20,
+                                          height: 160,
                                         ),
-                                        focusedBorder: UnderlineInputBorder(
-                                            borderSide: BorderSide(
-                                                color: Colors.greenAccent)),
-                                        labelText: "Pick-Up",
-                                        hintStyle: TextStyle(
-                                          color: Colors.grey,
-                                          fontSize: 16,
-                                        )),
-                                    style: const TextStyle(fontSize: 14.0),
-                                    readOnly: true,
-                                    onTap: () async {
-                                      var res = await Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                              builder: ((context) =>
-                                                  const SearchPickUpScreen())));
-                                      if (res == "obtainDirection") {
-                                        await getPlaceDirection();
-                                      }
-                                    },
-                                  ),
-                                  const SizedBox(
-                                    height: 6.0,
-                                  ),
-                                  TextFormField(
-                                    controller: destinationLocationController,
-                                    decoration: const InputDecoration(
-                                        enabledBorder: UnderlineInputBorder(
-                                          borderSide: BorderSide(
-                                              color: Colors.greenAccent),
-                                        ),
-                                        focusedBorder: UnderlineInputBorder(
-                                            borderSide: BorderSide(
-                                                color: Colors.greenAccent)),
-                                        labelText: 'Drop-Off',
-                                        hintStyle: TextStyle(
-                                          color: Colors.grey,
-                                          fontSize: 14,
-                                        )),
-                                    style: const TextStyle(fontSize: 14.0),
-                                    readOnly: true,
-                                    onTap: () async {
-                                      if (pickUpLocationController.text
-                                              .toString() ==
-                                          'Retrieving Location...') {
-                                        showDialog(
-                                          context: context,
-                                          builder: (BuildContext context) {
-                                            return AlertDialog(
-                                              content: const Text(
-                                                  'Retrieving Location, Please wait.'),
-                                              actions: [
-                                                TextButton(
-                                                  onPressed: () {
-                                                    Navigator.of(context).pop();
-                                                  },
-                                                  child: const Text('OK'),
+                                        Flexible(
+                                          child: Padding(
+                                            padding: const EdgeInsets.only(
+                                                left: 15.0),
+                                            child: Column(
+                                              children: [
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsets.fromLTRB(
+                                                          8.0, 15.0, 8.0, 8.0),
+                                                  child: TextFormField(
+                                                    controller:
+                                                        pickUpLocationController,
+                                                    decoration:
+                                                        const InputDecoration(
+                                                            enabledBorder:
+                                                                UnderlineInputBorder(
+                                                              borderSide: BorderSide(
+                                                                  color: Colors
+                                                                      .greenAccent),
+                                                            ),
+                                                            focusedBorder: UnderlineInputBorder(
+                                                                borderSide: BorderSide(
+                                                                    color: Colors
+                                                                        .greenAccent)),
+                                                            labelText:
+                                                                "Pick-Up",
+                                                            hintStyle:
+                                                                TextStyle(
+                                                              color:
+                                                                  Colors.grey,
+                                                              fontSize: 16,
+                                                            )),
+                                                    style: const TextStyle(
+                                                        fontSize: 14.0),
+                                                    readOnly: true,
+                                                    onTap: () async {
+                                                      var res = await Navigator.push(
+                                                          context,
+                                                          MaterialPageRoute(
+                                                              builder: ((context) =>
+                                                                  const SearchPickUpScreen())));
+                                                      if (res ==
+                                                          "obtainDirection") {
+                                                        await getPlaceDirection();
+                                                      }
+                                                    },
+                                                  ),
                                                 ),
+                                                Padding(
+                                                  padding:
+                                                      const EdgeInsets.fromLTRB(
+                                                          8.0, 3.0, 8.0, 8.0),
+                                                  child: TextFormField(
+                                                    controller:
+                                                        destinationLocationController,
+                                                    decoration:
+                                                        const InputDecoration(
+                                                            enabledBorder:
+                                                                UnderlineInputBorder(
+                                                              borderSide: BorderSide(
+                                                                  color: ColorsConst
+                                                                      .greenAccent),
+                                                            ),
+                                                            focusedBorder: UnderlineInputBorder(
+                                                                borderSide: BorderSide(
+                                                                    color: ColorsConst
+                                                                        .greenAccent)),
+                                                            labelText:
+                                                                'Drop-Off',
+                                                            hintStyle:
+                                                                TextStyle(
+                                                              color: ColorsConst
+                                                                  .grey,
+                                                              fontSize: 16,
+                                                            )),
+                                                    style: const TextStyle(
+                                                        fontSize: 14.0),
+                                                    readOnly: true,
+                                                    onTap: () async {
+                                                      if (pickUpLocationController
+                                                              .text
+                                                              .toString() ==
+                                                          'Retrieving Location...') {
+                                                        showDialog(
+                                                          context: context,
+                                                          builder: (BuildContext
+                                                              context) {
+                                                            return AlertDialog(
+                                                              content: const Text(
+                                                                  'Retrieving Location, Please wait.'),
+                                                              actions: [
+                                                                TextButton(
+                                                                  onPressed:
+                                                                      () {
+                                                                    Navigator.of(
+                                                                            context)
+                                                                        .pop();
+                                                                  },
+                                                                  child:
+                                                                      const Text(
+                                                                          'OK'),
+                                                                ),
+                                                              ],
+                                                            );
+                                                          },
+                                                        );
+                                                      } else {
+                                                        var res = await Navigator.push(
+                                                            context,
+                                                            MaterialPageRoute(
+                                                                builder:
+                                                                    ((context) =>
+                                                                        const SearchScreen())));
+                                                        if (res ==
+                                                            "obtainDirection") {
+                                                          await getPlaceDirection();
+                                                        }
+                                                      }
+                                                    },
+                                                  ),
+                                                ),
+                                                const SizedBox(
+                                                  height: 10,
+                                                )
                                               ],
-                                            );
-                                          },
-                                        );
-                                      } else {
-                                        var res = await Navigator.push(
-                                            context,
-                                            MaterialPageRoute(
-                                                builder: ((context) =>
-                                                    const SearchScreen())));
-                                        if (res == "obtainDirection") {
-                                          await getPlaceDirection();
-                                        }
-                                      }
-                                    },
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
                                   ),
-                                ],
+                                  Expanded(
+                                    child: Align(
+                                      alignment: Alignment.bottomCenter,
+                                      child: Container(
+                                          padding: const EdgeInsets.all(0),
+                                          height: 80,
+                                          width: double.infinity,
+                                          child: ElevatedButton(
+                                              style: ButtonStyle(
+                                                elevation:
+                                                    MaterialStateProperty.all(
+                                                        4.0),
+                                                backgroundColor:
+                                                    MaterialStateProperty.all(
+                                                        ColorsConst
+                                                            .greenAccent),
+                                              ),
+                                              onPressed: () {
+                                                if (destinationLocationController
+                                                            .text
+                                                            .toString() ==
+                                                        'null' ||
+                                                    destinationLocationController
+                                                            .text
+                                                            .toString() ==
+                                                        'Enter Destination') {
+                                                  showDialog(
+                                                    context: context,
+                                                    builder:
+                                                        (BuildContext context) {
+                                                      return AlertDialog(
+                                                        content: const Text(
+                                                            'Enter Destination first!!'),
+                                                        actions: [
+                                                          TextButton(
+                                                            onPressed: () {
+                                                              Navigator.of(
+                                                                      context)
+                                                                  .pop();
+                                                            },
+                                                            child: const Text(
+                                                                'OK'),
+                                                          ),
+                                                        ],
+                                                      );
+                                                    },
+                                                  );
+                                                } else {
+                                                  Navigator.of(context).push(
+                                                      MaterialPageRoute(
+                                                          builder: (context) =>
+                                                              AvailableDrivers(
+                                                                userLatPos:
+                                                                    latitudeController
+                                                                        .text,
+                                                                userLongPos:
+                                                                    longitudeController
+                                                                        .text,
+                                                                userDestinationLatPos:
+                                                                    destinationLatitudeController
+                                                                        .text,
+                                                                userDestinationLongPos:
+                                                                    destinationLongitudeController
+                                                                        .text,
+                                                                destinationLocation:
+                                                                    destinationLocationController
+                                                                        .text,
+                                                              )));
+                                                }
+                                              },
+                                              child: const Text(
+                                                "Search",
+                                                style: TextStyle(
+                                                    fontWeight: FontWeight.bold,
+                                                    fontSize: 18),
+                                              ))),
+                                    ),
+                                  )
+                                ]),
                               ),
                             ),
                           ),
-                        ],
-                      ),
-                      const SizedBox(
-                        height: 10,
-                      ),
-                      SizedBox(
-                        height: 50,
-                        width: 300,
-                        child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              primary: Colors.greenAccent,
-                              elevation: 3,
-                              shape: RoundedRectangleBorder(
-                                  //to set border radius to button
-                                  borderRadius: BorderRadius.circular(10)),
+                        ),
+                        Column(
+                          children: <Widget>[
+                            SizedBox(
+                              height:
+                                  MediaQuery.of(context).size.height * 0.625,
                             ),
-                            onPressed: () {
-                              if (pickUpLocationController.text.toString() ==
-                                      'Retrieving Location...' ||
-                                  destinationLocationController.text
-                                          .toString() ==
-                                      'Where are you going?') {
-                                showDialog(
-                                  context: context,
-                                  builder: (BuildContext context) {
-                                    return AlertDialog(
-                                      content: const Text(
-                                          'Fields can not be empty!'),
-                                      actions: [
-                                        TextButton(
-                                          onPressed: () {
-                                            Navigator.of(context).pop();
-                                          },
-                                          child: const Text('OK'),
-                                        ),
-                                      ],
-                                    );
-                                  },
-                                );
-                              } else {
-                                _saveToFirebase(context);
-                              }
-                              // Navigator.of(context).push(MaterialPageRoute(
-                              //    builder: (context) => AvailableDrivers()));
-                            },
-                            child: const Text(
-                              "Add Ride",
-                              style: TextStyle(
-                                  fontWeight: FontWeight.bold, fontSize: 18),
-                            )),
-                      )
-                    ],
-                  ),
-                ),
-              )),
-        ],
+                            if (isLoading)
+                              const Padding(
+                                padding: EdgeInsets.all(15.0),
+                                child: Center(
+                                  child: CircularProgressIndicator(),
+                                ),
+                              )
+                            else
+                              Expanded(
+                                  child: ListView.builder(
+                                      itemCount: (acceptedRequest.isEmpty)
+                                          ? 1
+                                          : acceptedRequest.length,
+                                      itemBuilder: (context, index) {
+                                        if (acceptedRequest.isEmpty) {
+                                          return Center(
+                                            child: Column(
+                                              children: [
+                                                Image.asset(
+                                                  "images/noBook.jpg",
+                                                  height: 140,
+                                                ),
+                                                const SizedBox(
+                                                  height: 5,
+                                                ),
+                                                const Text(
+                                                  "YOU HAVE NO BOOKED TRIPS FOR NOW!!!",
+                                                  style: TextStyle(
+                                                      fontWeight:
+                                                          FontWeight.w500),
+                                                ),
+                                              ],
+                                            ),
+                                          );
+                                        } else {
+                                          Future<String?> pickUp =
+                                              getPickUpLoctionString(
+                                                  acceptedRequest[index]);
+                                          Future<String?> date = getPickUpDate(
+                                              acceptedRequest[index]);
+
+                                          return Padding(
+                                            padding: const EdgeInsets.only(
+                                                left: 25.0, right: 20.0),
+                                            child: Column(
+                                              children: [
+                                                ListTile(
+                                                    title:
+                                                        FutureBuilder<String?>(
+                                                      future: pickUp,
+                                                      builder: (BuildContext
+                                                              context,
+                                                          AsyncSnapshot<String?>
+                                                              snapshot) {
+                                                        if (snapshot.hasData) {
+                                                          return Text(
+                                                            'To: ${snapshot.data}',
+                                                            style:
+                                                                const TextStyle(
+                                                                    fontSize:
+                                                                        14),
+                                                          );
+                                                        } else {
+                                                          return const Text(
+                                                              'Retrieving Location...');
+                                                        }
+                                                      },
+                                                    ),
+                                                    subtitle:
+                                                        FutureBuilder<String?>(
+                                                      future: date,
+                                                      builder: (BuildContext
+                                                              context,
+                                                          AsyncSnapshot<String?>
+                                                              snapshot) {
+                                                        if (snapshot.hasData) {
+                                                          return Text(
+                                                            'On ${snapshot.data}',
+                                                            style:
+                                                                const TextStyle(
+                                                                    fontSize:
+                                                                        14),
+                                                          );
+                                                        } else {
+                                                          return const Text(
+                                                              'Retrieving Location...');
+                                                        }
+                                                      },
+                                                    ),
+                                                    trailing: Icon(
+                                                        Icons.navigate_next),
+                                                    onTap: () {
+                                                      Navigator.of(context)
+                                                          .push(
+                                                              MaterialPageRoute(
+                                                        builder: (context) =>
+                                                            MyBookedTrips(
+                                                                request:
+                                                                    acceptedRequest[
+                                                                        index]),
+                                                      ));
+                                                    }),
+                                                const Divider(),
+                                              ],
+                                            ),
+                                          );
+                                        }
+                                      })),
+                          ],
+                        ),
+                      ],
+                    )),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
 
-  Future<void> _saveToFirebase(BuildContext context) async {
-    String dropdownvalue = '1 passenger';
+  Future<String> getPickUpLoctionString(Request request) async {
+    final ref = FirebaseDatabase.instance.ref();
+    final snapshot =
+        await ref.child('trips/${request.tripID}/destinationLocation').get();
+    if (snapshot.exists) {
+      return snapshot.value.toString();
+    } else {
+      return '';
+    }
+  }
 
-    String? currentSelectedVehicle = carType;
-    String currentSelectedPassenger = '1 Passenger';
-    Map<String, List<String>> dropdownItemsMap = {
-      'Car': ['1 Passenger', '2 Passengers', '3 Passengers', '4 Passengers'],
-      'Van': [
-        '1 Passenger',
-        '2 Passengers',
-        '3 Passengers',
-        '4 Passengers',
-        '5 Passengers',
-        '6 Passengers',
-        '7 Passengers',
-        '8 Passengers',
-        '9 Passengers',
-        '10 Passengers',
-        '11 Passengers',
-        '12 Passengers'
-      ],
-      'Mini-Van': [
-        '1 Passenger',
-        '2 Passengers',
-        '3 Passengers',
-        '4 Passengers',
-        '5 Passengers',
-        '6 Passengers'
-      ]
-    };
+  Future<String> getPickUpDate(Request request) async {
+    final ref = FirebaseDatabase.instance.ref();
+    final snapshot = await ref.child('trips/${request.tripID}/date').get();
+    final snapshot2 = await ref.child('trips/${request.tripID}/time').get();
+    if (snapshot.exists && snapshot2.exists) {
+      return '${formatDate(snapshot.value.toString())} at ${snapshot2.value}';
+    } else {
+      return '';
+    }
+  }
 
-    estimatedCostController.text = 'Rs ' +
-        estimateCost(
-            double.parse(latitudeController.text.toString()),
-            double.parse(longitudeController.text.toString()),
-            double.parse(destinationLatitudeController.text.toString()),
-            double.parse(destinationLongitudeController.text.toString()));
-    estimatedCostController.text;
+  String formatDate(String inputStr) {
+    // Convert the input string to a DateTime object
+    DateTime date = DateTime.parse(inputStr);
 
-    var currentSelectedValue;
-    return showDialog(
-        context: context,
-        builder: (context) {
-          return AlertDialog(
-            title: const Center(child: Text("Add a pool")),
-            content: SingleChildScrollView(
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  children: [
-                    TextFormField(
-                      controller: pickUpLocationController,
-                      enabled: false,
-                      decoration: const InputDecoration(
-                        enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.greenAccent),
-                        ),
-                        focusedBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(color: Colors.greenAccent)),
-                        labelText: 'Pick-Up',
-                        icon: Icon(Icons.location_on_rounded),
-                      ),
-                    ),
-                    const SizedBox(
-                      height: 13.0,
-                    ),
-                    TextFormField(
-                      controller: destinationLocationController,
-                      enabled: false,
-                      decoration: const InputDecoration(
-                        enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.greenAccent),
-                        ),
-                        focusedBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(color: Colors.greenAccent)),
-                        labelText: 'Drop-Off',
-                        icon: Icon(Icons.location_on_outlined),
-                      ),
-                    ),
-                    const SizedBox(
-                      height: 13.0,
-                    ),
-                    TextFormField(
-                      controller: estimatedCostController,
-                      enabled: false,
-                      decoration: const InputDecoration(
-                        enabledBorder: UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.greenAccent),
-                        ),
-                        focusedBorder: UnderlineInputBorder(
-                            borderSide: BorderSide(color: Colors.greenAccent)),
-                        labelText: 'Estimated Cost',
-                        icon: Icon(Icons.money),
-                      ),
-                    ),
-                    const SizedBox(
-                      height: 13.0,
-                    ),
-                    DropdownButtonFormField<String>(
-                      value: currentSelectedPassenger,
-                      items: dropdownItemsMap[currentSelectedVehicle]!
-                          .map((String value) {
-                        return DropdownMenuItem<String>(
-                          value: value,
-                          child: Text(value),
-                        );
-                      }).toList(),
-                      onChanged: (newValue) {
-                        setState(() {
-                          currentSelectedPassenger = newValue!;
-                          this.passengers = newValue;
-                        });
-                      },
-                      decoration: InputDecoration(
-                        labelText: "Select passengers",
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(5.0),
-                        ),
-                      ),
-                      hint: Text('Select Passengers'),
-                      validator: (value) {
-                        if (value == null) {
-                          return 'Please select passengers';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(
-                      height: 13.0,
-                    ),
-                    TextFormField(
-                        readOnly: true,
-                        controller: dateController,
-                        decoration: const InputDecoration(
-                            enabledBorder: UnderlineInputBorder(
-                              borderSide: BorderSide(color: Colors.greenAccent),
-                            ),
-                            focusedBorder: UnderlineInputBorder(
-                                borderSide:
-                                    BorderSide(color: Colors.greenAccent)),
-                            labelText: 'Date',
-                            icon: Icon(Icons.calendar_month_rounded)),
-                        onTap: () async {
-                          DateTime? pickedDate = await showDatePicker(
-                            context: context,
-                            initialDate: DateTime.now(),
-                            firstDate: DateTime.now(),
-                            lastDate: DateTime(2200),
-                          );
+    // Format the DateTime object as a String in the desired format
+    String formattedStr = DateFormat('EE, MMM d y').format(date);
 
-                          if (pickedDate != null) {
-                            setState(() {
-                              dateController.text =
-                                  DateFormat('yyyy-MM-dd').format(pickedDate);
-                            });
-                          }
-                        }),
-                    TextFormField(
-                        readOnly: true,
-                        controller: timeController,
-                        decoration: const InputDecoration(
-                            enabledBorder: UnderlineInputBorder(
-                              borderSide: BorderSide(color: Colors.greenAccent),
-                            ),
-                            focusedBorder: UnderlineInputBorder(
-                                borderSide:
-                                    BorderSide(color: Colors.greenAccent)),
-                            labelText: 'Time',
-                            icon: Icon(Icons.alarm)),
-                        onTap: () async {
-                          TimeOfDay? pickedTime = await showTimePicker(
-                            context: context,
-                            initialTime: TimeOfDay.now(),
-                          );
-                          if (pickedTime != null) {
-                            setState(() {
-                              final localizations =
-                                  MaterialLocalizations.of(context);
-                              final formattedTimeOfDay =
-                                  localizations.formatTimeOfDay(pickedTime);
-                              timeController.text = formattedTimeOfDay;
-                            });
-                          }
-                        }),
-                  ],
-                ),
-              ),
-            ),
-            actions: <Widget>[
-              MaterialButton(
-                color: Colors.red,
-                textColor: Colors.white,
-                child: const Text('Cancel'),
-                onPressed: () {
-                  setState(() {
-                    Navigator.pop(context);
-                  });
-                },
-              ),
-              MaterialButton(
-                color: Colors.green,
-                textColor: Colors.white,
-                child: const Text('Save'),
-                onPressed: () {
-                  setState(() {
-                    _saveCarPool();
-                    Navigator.pop(context);
-                  });
-                },
-              ),
-            ],
-          );
-        });
+    return formattedStr;
   }
 
   Future<void> getPlaceDirection() async {
@@ -594,6 +629,7 @@ class _DashboardState extends State<Dashboard> {
     var details = await AssistantMethods.obtainDirectionDetails(
         pickUpLatLng, dropOffLatLng);
 
+    // ignore: use_build_context_synchronously
     Navigator.pop(context);
 
     PolylinePoints polylinePoints = PolylinePoints();
@@ -606,9 +642,7 @@ class _DashboardState extends State<Dashboard> {
             .add(LatLng(pointLatLng.latitude, pointLatLng.longitude));
       });
     }
-
     polylineSet.clear();
-
     setState(() {
       Polyline polyline = Polyline(
         color: Colors.pink,
@@ -686,102 +720,5 @@ class _DashboardState extends State<Dashboard> {
       circlesSet.add(pickUpLocCircle);
       circlesSet.add(dropOffLocCircle);
     });
-  }
-
-  Future<void> _saveCarPool() async {
-    int index = 0;
-    final _auth = FirebaseAuth.instance;
-    Timer timestamp;
-    String tripID = DateTime.now().microsecondsSinceEpoch.toString();
-    int size = int.parse(passengers[0]); // the size of the list
-    List<String> list = List.generate(size, (index) => "");
-
-    if (_formKey.currentState!.validate()) {
-      _formKey.currentState!.save();
-      try {
-        Future.delayed(Duration.zero, () {
-          showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (BuildContext c) {
-                return ProgressDialog(
-                  message: "Processing, Please wait...",
-                );
-              });
-        });
-        await tripsRef.child(tripID).set({
-          "tripID": tripID,
-          "pickUpLocation": pickUpLocationController.text.toString(),
-          "destinationLocation": destinationLocationController.text.toString(),
-          "locationLatitude": latitudeController.text,
-          "locationLongitude": longitudeController.text,
-          "destinationLatitude": destinationLatitudeController.text,
-          "destinationLongitude": destinationLongitudeController.text,
-          "passengers": passengers,
-          "driver_id": _auth.currentUser?.uid.toString(),
-          "passengerIDs": list,
-          "date": dateController.text.toString(),
-          "time": timeController.text.toString(),
-          "availableSeats": passengers[0],
-          "estimatedCost": estimatedCostController.text.toString(),
-          "status": "scheduled",
-        });
-        Navigator.pop(context);
-        // ignore: use_build_context_synchronously
-        displayToastMessage(
-            "Congratulations,your pool has been added", context);
-      } catch (ex) {
-        print("Your error is $ex");
-        Navigator.pop(context);
-        displayToastMessage("Pool has not been added", context);
-      }
-    }
-  }
-
-  String estimateCost(
-      double pickUpLat, double pickUpLong, double destLat, double destLong) {
-    double baseFare = 80;
-    double costPerMin = 2;
-    double costPerKm = 12;
-
-    double distance =
-        estimateDistance(pickUpLat, pickUpLong, destLat, destLong);
-    double time = estimateTime(distance);
-
-    double cost = baseFare + (distance * costPerKm) + (time * costPerMin);
-
-    return cost.round().toString();
-  }
-
-  double estimateDistance(
-      double pickUpLat, double pickUpLong, double destLat, double destLong) {
-    double distance, earthRadius = 6371;
-    double lat1Rad = degreesToRadians(pickUpLat);
-    double lon1Rad = degreesToRadians(pickUpLong);
-    double lat2Rad = degreesToRadians(destLat);
-    double lon2Rad = degreesToRadians(destLong);
-
-    double latDiff = lat2Rad - lat1Rad;
-    double lonDiff = lon2Rad - lon1Rad;
-
-    num havLat = pow(sin(latDiff / 2), 2);
-    num havLon = pow(sin(lonDiff / 2), 2);
-
-    double hav = havLat + havLon * cos(lat1Rad) * cos(lat2Rad);
-
-    distance = 2 * earthRadius * asin(sqrt(hav));
-
-    return distance;
-  }
-
-  double degreesToRadians(double degrees) {
-    // Helper function to convert degrees to radians
-    return degrees * pi / 180;
-  }
-
-  double estimateTime(double distance) {
-    double averageSpeed = 20;
-
-    return distance / averageSpeed * 60;
   }
 }

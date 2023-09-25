@@ -1,9 +1,7 @@
-// ignore_for_file: sized_box_for_whitespace
-
-import 'package:rideshare_driver/Models/place_predictions.dart';
-import 'package:rideshare_driver/Views/assistants/request_assistant.dart';
-import 'package:rideshare_driver/Views/data%20handler/app_data.dart';
-import 'package:rideshare_driver/Views/trips/trips_list.dart';
+import 'package:rideshare/Models/place_predictions.dart';
+import 'package:rideshare/Views/assistants/request_assistant.dart';
+import 'package:rideshare/Views/data%20handler/app_data.dart';
+import 'package:rideshare/splashScreen/splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../Constants/styles/colors.dart';
@@ -31,6 +29,7 @@ class _SearchTripState extends State<SearchTrip> {
     return Scaffold(
         body: Stack(
       children: [
+        // ignore: sized_box_for_whitespace
         Container(
           height: MediaQuery.of(context).size.height * 0.5,
           child: Align(
@@ -81,10 +80,12 @@ class _SearchTripState extends State<SearchTrip> {
                   disabledBorder: StylesConst.textBorder,
                   fillColor: ColorsConst.grey100,
                   filled: true,
-                  label: Text(pickUpTextEditingController.text.toString()),
-                  labelStyle: StylesConst.labelStyle,
+                  label: Text(
+                    pickUpTextEditingController.text.toString(),
+                  ),
                   hintStyle: StylesConst.hintStyle),
-              style: const TextStyle(fontSize: 17.0),
+              style:
+                  const TextStyle(fontSize: 14.0, fontWeight: FontWeight.w600),
             ),
           ),
           Padding(
@@ -98,8 +99,8 @@ class _SearchTripState extends State<SearchTrip> {
                 focusedBorder: StylesConst.textBorder,
                 filled: true,
                 label: const Text(
-                  "Destination",
-                  style: TextStyle(fontSize: 17),
+                  "Where are you going?",
+                  style: TextStyle(fontSize: 14),
                 ),
                 labelStyle: StylesConst.labelStyle,
               ),
@@ -115,17 +116,15 @@ class _SearchTripState extends State<SearchTrip> {
                   height: 60,
                   width: double.infinity,
                   child: ElevatedButton(
-                      style: ButtonStyle(
-                        elevation: MaterialStateProperty.all(4.0),
-                        backgroundColor:
-                            MaterialStateProperty.all(Colors.blue[700]),
-                      ),
                       onPressed: () {
-                        Navigator.pushNamedAndRemoveUntil(
-                            context, TripList.idScreen, (route) => false);
+                        Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                                builder: (BuildContext context) =>
+                                    const MySplashScreen()));
                       },
                       child: const Text(
-                        "Search",
+                        "Sea]s;anfaorch",
                         style: TextStyle(
                             fontWeight: FontWeight.bold, fontSize: 18),
                       ))),
@@ -199,7 +198,7 @@ class PredictionTile extends StatelessWidget {
                   //     style: const TextStyle(
                   //         fontSize: 12.0,
                   //         overflow: TextOverflow.ellipsis,
-                  //         color: ColorsConst.grey)),
+                  //         color: Colors.grey)),
                   //         const SizedBox(
                   //   height: 8.0,
                   // ),

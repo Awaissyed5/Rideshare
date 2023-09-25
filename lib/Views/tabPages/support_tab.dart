@@ -17,7 +17,7 @@ class _MyFeedbackState extends State<MyFeedback> {
   TextEditingController feedbackTextEditingController = TextEditingController();
   List<String> supportType = [
     "Feedback",
-    "Passenger Attitude",
+    "Driver Attitude",
     "Item Lost",
     "About our app",
     "Other"
@@ -47,7 +47,7 @@ class _MyFeedbackState extends State<MyFeedback> {
         });
     Map feedbackMap = {
       "feedbackID": feedbackID,
-      "clientType": "Driver",
+      "clientType": "Passenger",
       "userID": currentFirebaseUser!.uid.toString(),
       "title": selectedSupportType,
       "feedback": feedbackTextEditingController.text.toString(),

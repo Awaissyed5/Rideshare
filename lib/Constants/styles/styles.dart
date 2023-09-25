@@ -1,9 +1,9 @@
-import 'package:rideshare_driver/Constants/styles/colors.dart';
+import 'package:rideshare/Constants/styles/colors.dart';
 import 'package:flutter/material.dart';
 
 class StylesConst {
   static final ButtonStyle buttonTheme = ButtonStyle(
-      backgroundColor: MaterialStateProperty.all(ColorsConst.blue700),
+      backgroundColor: MaterialStateProperty.all(Colors.blue[700]),
       shape: MaterialStateProperty.all(
           RoundedRectangleBorder(borderRadius: BorderRadius.circular(12.0))));
   static final OutlineInputBorder textBorder = OutlineInputBorder(

@@ -1,8 +1,9 @@
-import 'package:rideshare_driver/authentication/signup_screen.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'package:rideshare/authentication/forgot_password.dart';
+import 'package:rideshare/authentication/signup_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_database/firebase_database.dart';
 
 import 'package:fluttertoast/fluttertoast.dart';
 
@@ -10,7 +11,6 @@ import '../Constants/styles/colors.dart';
 import '../global/global.dart';
 import '../mainScreens/main_screen.dart';
 import '../widgets/progress_dialog.dart';
-import 'forgot_password.dart';
 
 // ignore: must_be_immutable
 class LoginScreen extends StatefulWidget {
@@ -42,11 +42,12 @@ class _LoginScreenState extends State<LoginScreen> {
               message: "Logging in, Please wait...",
             );
           });
+
       try {
         final String email = emailTextEditingController.text.trim();
         final String password = passwordTextEditingController.text.trim();
 
-        final ref = FirebaseDatabase.instance.ref('drivers');
+        final ref = FirebaseDatabase.instance.ref('users');
         final snapshot = await ref.orderByChild('email').equalTo(email).get();
 
         if (!snapshot.exists) {
@@ -56,28 +57,33 @@ class _LoginScreenState extends State<LoginScreen> {
 
           return;
         }
+
         final User? firebaseUser = (await fAuth
                 .signInWithEmailAndPassword(
-          email: emailTextEditingController.text.trim(),
-          password: passwordTextEditingController.text.trim(),
+          email: email,
+          password: password,
         )
                 // ignore: body_might_complete_normally_catch_error
                 .catchError((msg) {
           Navigator.pop(context);
-          Fluttertoast.showToast(msg: "Error: $msg");
+          Fluttertoast.showToast(msg: 'Error: $msg');
         }))
             .user;
 
         if (firebaseUser != null) {
           currentFirebaseUser = firebaseUser;
-          // ignore: use_build_context_synchronously
+          Fluttertoast.showToast(msg: 'Login successful!');
           Navigator.push(
-              context, MaterialPageRoute(builder: (c) => const MainScreen()));
+            context,
+            MaterialPageRoute(builder: (c) => const MainScreen()),
+          );
         } else {
-          // ignore: use_build_context_synchronously
           Navigator.pop(context);
-          Fluttertoast.showToast(msg: "Login not successful!");
+          Fluttertoast.showToast(msg: 'Login not successful!');
         }
+      } catch (error) {
+        Navigator.pop(context);
+        Fluttertoast.showToast(msg: 'Error: $error');
       } on FirebaseAuthException catch (e) {
         if (e.code == 'network-request-failed') {
           return Fluttertoast.showToast(msg: 'No Internet Connection');
@@ -147,8 +153,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 height: 10,
               ),
               TextField(
-                obscureText: !isPasswordVisible,
                 controller: passwordTextEditingController,
+                obscureText: !isPasswordVisible,
                 keyboardType: TextInputType.emailAddress,
                 style: const TextStyle(color: ColorsConst.grey),
                 decoration: InputDecoration(
@@ -226,7 +232,7 @@ class _LoginScreenState extends State<LoginScreen> {
               RichText(
                   text: TextSpan(children: <TextSpan>[
                 const TextSpan(
-                    text: "Dont have an account? ",
+                    text: "Don't have an account? ",
                     style: TextStyle(
                         fontSize: 16.0,
                         fontWeight: FontWeight.w300,

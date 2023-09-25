@@ -1,4 +1,4 @@
-import 'package:rideshare_driver/Constants/styles/colors.dart';
+import 'package:rideshare/Constants/styles/colors.dart';
 import 'package:flutter/material.dart';
 
 // ignore: must_be_immutable

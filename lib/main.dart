@@ -1,9 +1,9 @@
-import 'package:rideshare_driver/splashScreen/splash_screen.dart';
+import 'package:rideshare/splashScreen/splash_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
-import 'package:rideshare_driver/Views/data handler/app_data.dart';
+import 'package:rideshare/Views/data handler/app_data.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();

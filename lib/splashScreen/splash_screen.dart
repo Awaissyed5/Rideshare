@@ -1,8 +1,6 @@
 import 'dart:async';
-
+import 'package:rideshare/Constants/styles/colors.dart';
 import 'package:flutter/material.dart';
-
-import '../Constants/styles/colors.dart';
 import '../authentication/login_screen.dart';
 import '../global/global.dart';
 import '../mainScreens/main_screen.dart';
@@ -19,7 +17,6 @@ class _MySplashScreenState extends State<MySplashScreen> {
     Timer(const Duration(seconds: 3), () async {
       if (fAuth.currentUser != null) {
         currentFirebaseUser = fAuth.currentUser;
-        // ignore: use_build_context_synchronously
         Navigator.push(
             context, MaterialPageRoute(builder: (c) => const MainScreen()));
       } else {

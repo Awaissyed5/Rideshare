@@ -1,5 +1,5 @@
 // ignore_for_file: must_be_immutable
-import 'package:rideshare_driver/Constants/styles/colors.dart';
+import 'package:rideshare/Constants/styles/colors.dart';
 import 'package:flutter/material.dart';
 
 class LoadingScreen extends StatelessWidget {

@@ -1,12 +1,18 @@
+import 'package:rideshare/Constants/styles/colors.dart';
 import 'package:flutter/material.dart';
 
 class ProfileWidget extends StatelessWidget {
   final String imagePath;
+  final VoidCallback onClicked;
 
-  const ProfileWidget({Key? key, required this.imagePath}) : super(key: key);
+  const ProfileWidget(
+      {Key? key, required this.imagePath, required this.onClicked})
+      : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final color = Theme.of(context).colorScheme.primary;
+
     return Center(
         child: Stack(
       children: [
@@ -26,10 +32,20 @@ class ProfileWidget extends StatelessWidget {
           fit: BoxFit.cover,
           width: 132,
           height: 132,
+          child: InkWell(onTap: onClicked),
         ),
       ),
     );
   }
+
+  Widget buildEditIcon(Color color) => buildCircle(
+        color: color,
+        child: const Icon(
+          Icons.edit,
+          color: ColorsConst.greenAccent,
+          size: 20,
+        ),
+      );
 
   Widget buildCircle({
     required Widget child,

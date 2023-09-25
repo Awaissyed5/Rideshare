@@ -1,4 +1,4 @@
-import 'package:rideshare_driver/Models/address.dart';
+import 'package:rideshare/Models/address.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/src/widgets/framework.dart';
 import 'package:flutter/src/widgets/placeholder.dart';
@@ -31,7 +31,6 @@ class _SearchPickUpScreenState extends State<SearchPickUpScreen> {
   late Position currentPosition;
 
   List<PlacePredictions> placePredictionList = [];
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -63,9 +62,6 @@ class _SearchPickUpScreenState extends State<SearchPickUpScreen> {
   }
 
   Widget searchBar(BuildContext context) {
-    String? placeAddress =
-        Provider.of<AppData>(context).pickUpLocation?.placeName;
-    pickUpTextEditingController.text = placeAddress!;
     return Container(
       decoration: const BoxDecoration(color: Colors.white, boxShadow: [
         BoxShadow(
@@ -91,7 +87,7 @@ class _SearchPickUpScreenState extends State<SearchPickUpScreen> {
                     child: const Icon(Icons.arrow_back)),
                 const Center(
                     child: Text(
-                  "Set destination",
+                  "Set Pick Up",
                   style: TextStyle(fontSize: 18.0),
                 ))
               ],
@@ -111,18 +107,16 @@ class _SearchPickUpScreenState extends State<SearchPickUpScreen> {
                         findPlace(val);
                       },
                       decoration: InputDecoration(
-                        enabledBorder: const UnderlineInputBorder(
-                          borderSide: BorderSide(color: Colors.greenAccent),
-                        ),
-                        focusedBorder: const UnderlineInputBorder(
-                            borderSide: BorderSide(color: Colors.greenAccent)),
+                        enabledBorder: StylesConst.textBorder,
+                        focusedBorder: StylesConst.textBorder,
+                        filled: true,
                         label: const Text(
                           "Pick-Up",
-                          style: TextStyle(fontSize: 12),
+                          style: TextStyle(fontSize: 17),
                         ),
                         labelStyle: StylesConst.labelStyle,
                         suffixIcon: IconButton(
-                          icon: const Icon(Icons.clear),
+                          icon: Icon(Icons.clear),
                           onPressed: () {
                             pickUpTextEditingController.clear();
                           },
@@ -136,7 +130,7 @@ class _SearchPickUpScreenState extends State<SearchPickUpScreen> {
               ],
             ),
             const SizedBox(
-              height: 25.0,
+              height: 10.0,
             ),
             Column(
               children: [
@@ -151,10 +145,10 @@ class _SearchPickUpScreenState extends State<SearchPickUpScreen> {
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(10.0),
                         // button border radius
-                        side: const BorderSide(
+                        side: BorderSide(
                             color: Colors.greenAccent) // button border
                         ),
-                    padding: const EdgeInsets.symmetric(
+                    padding: EdgeInsets.symmetric(
                         horizontal: 16.0, vertical: 8.0), // button padding
                   ),
                   child: Row(
@@ -172,7 +166,7 @@ class _SearchPickUpScreenState extends State<SearchPickUpScreen> {
                 ),
                 if (_isLoading)
                   Padding(
-                    padding: const EdgeInsets.only(top: 16),
+                    padding: EdgeInsets.only(top: 16),
                     child: Column(
                       children: const [
                         CircularProgressIndicator(),
@@ -236,7 +230,7 @@ class _SearchPickUpScreenState extends State<SearchPickUpScreen> {
   void findPlace(String placeName) async {
     if (placeName.length > 1) {
       String autoCompleteUrl =
-          "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=$placeName&key=$mapKey&sessiontoken=1234567890&components=country:pk";
+          "https://maps.googleapis.com/maps/api/place/autocomplete/json?input=$placeName&key=$mapKey&sessiontoken=1234567890&components=country:et";
 
       var res = await RequestAssistant.getRequest(autoCompleteUrl);
 
@@ -261,7 +255,6 @@ class _SearchPickUpScreenState extends State<SearchPickUpScreen> {
 
 class PredictionTile extends StatelessWidget {
   final PlacePredictions placePredictions;
-
   const PredictionTile({Key? key, required this.placePredictions})
       : super(key: key);
 

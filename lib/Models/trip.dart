@@ -1,4 +1,4 @@
-class Trip{
+class TripsModel {
   final String tripID;
   final String driverID;
   final String pickUpLatPos;
@@ -17,7 +17,7 @@ class Trip{
   final String passengers;
   final String status;
 
-  const Trip({
+  const TripsModel({
     required this.tripID,
     required this.driverID,
     required this.pickUpLatPos,
@@ -34,6 +34,6 @@ class Trip{
     required this.time,
     required this.availableSeats,
     required this.passengers,
-    required this.status,
+    required this.status
   });
 }

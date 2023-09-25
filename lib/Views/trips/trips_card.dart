@@ -1,4 +1,4 @@
-import 'package:rideshare_driver/main.dart';
+import 'package:rideshare/main.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/ui/firebase_animated_list.dart';
 import 'package:flutter/material.dart';
@@ -25,7 +25,7 @@ class TripCards extends StatelessWidget {
             ],
           ),
           subtitle: Text(pools['passengers']),
-          trailing: Text(pools['price']),
+          trailing: Text(pools['estimatedCost']),
         );
       }),
     );
@@ -97,7 +97,9 @@ class TripCards extends StatelessWidget {
         text: const TextSpan(
           text: "Abiy Zebene",
           style: TextStyle(
-              fontWeight: FontWeight.bold, color: Colors.black, fontSize: 17),
+              fontWeight: FontWeight.bold,
+              color: ColorsConst.black,
+              fontSize: 17),
           children: <TextSpan>[
             TextSpan(
                 text: "\nGrey Toyota Vitz",
@@ -121,7 +123,7 @@ class TripCards extends StatelessWidget {
     return const Align(
       alignment: Alignment.topRight,
       child: Text(
-        "Rs. 120 ",
+        "120 br.",
         style: TextStyle(
             fontWeight: FontWeight.bold,
             color: ColorsConst.green,

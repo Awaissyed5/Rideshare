@@ -1,4 +1,4 @@
-import 'package:rideshare_driver/Views/trips/trips_card.dart';
+import 'package:rideshare/Views/trips/trips_card.dart';
 import 'package:flutter/material.dart';
 
 class TripList extends StatelessWidget {

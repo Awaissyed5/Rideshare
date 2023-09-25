@@ -1,13 +1,14 @@
 import 'dart:core';
-import 'package:rideshare_driver/Views/tabPages/trip_history_details.dart';
-import 'package:rideshare_driver/widgets/progress_dialog.dart';
+
+import 'package:rideshare/Models/request.dart';
+import 'package:rideshare/Models/trip.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
-import 'package:intl/intl.dart';
+
 import '../../Constants/styles/colors.dart';
-import '../../Models/trip.dart';
 import '../../global/global.dart';
+import '../../widgets/progress_dialog.dart';
+import 'bookedTripDetails.dart';
 
 class TripHistoryTabPage extends StatefulWidget {
   const TripHistoryTabPage({Key? key}) : super(key: key);
@@ -17,80 +18,68 @@ class TripHistoryTabPage extends StatefulWidget {
 }
 
 class _TripHistoryTabPageState extends State<TripHistoryTabPage> {
-  List<Trip> trips = [];
-  List<Trip> historyTrips = [];
+  List<Request> requests = [];
+  List<Request> finishedRequests = [];
   bool isLoading = false;
-  final databaseReference = FirebaseDatabase.instance.ref('trips');
 
   @override
   void initState() {
     super.initState();
     isLoading = true;
-    getTrip().then((_) {
+    getFinishedRequests().then((_) {
       setState(() {
         isLoading = false;
       });
     });
   }
 
-  Future<List<Trip>> getTrips(String driverId) async {
-    List<Trip> itemList = [];
+  final databaseReference = FirebaseDatabase.instance.ref('requests');
+  Future<List<Request>> getRequests(String userID) async {
+    List<Request> itemList = [];
     // Get a reference to the Firebase database
 
     try {
-      final dataSnapshot = await databaseReference
-          .orderByChild('driver_id')
-          .equalTo(driverId)
-          .once();
+      final dataSnapshot =
+          await databaseReference.orderByChild('userID').equalTo(userID).once();
 
-      Map<dynamic, dynamic> values =
-          dataSnapshot.snapshot.value as Map<dynamic, dynamic>;
-      values.forEach((key, value) {
-        final item = Trip(
-            tripID: value['tripID'],
-            driverID: value['driver_id'],
-            pickUpLatPos: value['locationLatitude'],
-            pickUpLongPos: value['locationLongitude'],
-            dropOffLatPos: value['destinationLatitude'],
-            dropOffLongPos: value['destinationLongitude'],
-            pickUpDistance: 0,
-            dropOffDistance: 0,
-            destinationLocation: value['destinationLocation'],
-            pickUpLocation: value['pickUpLocation'],
-            userIDs: [],
-            price: value['estimatedCost'],
-            date: value['date'],
-            time: value['time'],
-            availableSeats: value['availableSeats'],
-            passengers: value['passengers'],
-            status: value['status']);
-        itemList.add(item);
-      });
+      Map<dynamic, dynamic>? values =
+          dataSnapshot.snapshot.value as Map<dynamic, dynamic>?;
+      if (values != null) {
+        values.forEach((key, value) {
+          final item = Request(
+              requestID: value['requestID'],
+              tripID: value['tripID'],
+              driverID: value['driverID'],
+              userID: value['userID'],
+              status: value['status']);
+          itemList.add(item);
+        });
+      }
     } catch (e) {
       // Log the error and return an empty list
-      // Fluttertoast.showToast(msg: e.toString());
+      print('Error: $e');
     }
     return itemList;
   }
 
-  Future<void> getTrip() async {
-    List<Trip> trips = await getTrips(currentFirebaseUser!.uid.toString());
+  Future<void> getFinishedRequests() async {
+    List<Request> requests =
+        await getRequests(currentFirebaseUser!.uid.toString());
     setState(() {
-      this.trips = trips;
-      for (var t in trips) {
-        if (t.status == 'finished' || t.status == 'cancelled') {
-          historyTrips.add(t);
-        }
+      this.requests = requests;
+      for (var r in requests) {
+        if (r.status == 'finished' || r.status == 'cancelled')
+          finishedRequests.add(r);
       }
     });
   }
 
+  final ref = FirebaseDatabase.instance.ref('trips');
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      child: Scaffold(
+    return Scaffold(
         backgroundColor:
-            (historyTrips.isEmpty) ? Colors.white : const Color(0xFFEDEDED),
+            (finishedRequests.isEmpty) ? Colors.white : const Color(0xFFEDEDED),
         body: Stack(
           children: [
             if (isLoading)
@@ -98,9 +87,9 @@ class _TripHistoryTabPageState extends State<TripHistoryTabPage> {
                 message: "Processing....",
               )
             else
-              (historyTrips.isEmpty)
-                  ? Center(
-                      child: Column(
+              Center(
+                child: (finishedRequests.isEmpty)
+                    ? Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Image.asset(
@@ -112,126 +101,93 @@ class _TripHistoryTabPageState extends State<TripHistoryTabPage> {
                           ),
                           const Text(
                             "YOU HAVE NO PAST BOOKED TRIPS !!!",
-                            style: TextStyle(
-                                fontWeight: FontWeight.w600,
-                                color: Colors.blueGrey),
+                            style: TextStyle(fontWeight: FontWeight.w500),
                           ),
                         ],
+                      )
+                    : ListView.builder(
+                        itemCount: finishedRequests.length,
+                        itemBuilder: (context, index) {
+                          return StreamBuilder(
+                            stream: ref
+                                .child(finishedRequests[index].tripID)
+                                .onValue,
+                            builder: (context, AsyncSnapshot snapshot) {
+                              if (snapshot.connectionState ==
+                                  ConnectionState.waiting) {
+                                return Container();
+                              } else if (snapshot.hasError) {
+                                return Text('Error: ${snapshot.error}');
+                              } else if (!snapshot.hasData ||
+                                  snapshot.data?.snapshot?.value == null) {
+                                return Container();
+                              } else {
+                                Map<dynamic, dynamic> trip =
+                                    snapshot.data.snapshot.value;
+                                return buildTripDetails(
+                                    trip, finishedRequests[index], index);
+                              }
+                            },
+                          );
+                        },
                       ),
-                    )
-                  : ListView.builder(
-                      itemCount: historyTrips.length,
-                      itemBuilder: (context, index) {
-                        return GestureDetector(
-                          child: Column(
-                            children: [
-                              ListTile(
-                                title: Text(
-                                  historyTrips[index].destinationLocation,
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w100,
-                                  ),
-                                ),
-                                subtitle: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    const SizedBox(
-                                      height: 10,
-                                    ),
-                                    Text(
-                                      '${DateFormat('EEEE, MMMM d, y').format(DateTime.parse(historyTrips[index].date))} at ${historyTrips[index].time}',
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                      ),
-                                    ),
-                                    Text(
-                                      historyTrips[index].status.toUpperCase(),
-                                      style: TextStyle(
-                                          fontSize: 14,
-                                          color: (historyTrips[index].status ==
-                                                  'finished')
-                                              ? Colors.greenAccent
-                                              : Colors.redAccent),
-                                    ),
-                                  ],
-                                ),
-                                trailing: const Icon(Icons.navigate_next),
-                                onTap: () {
-                                  Navigator.of(context).push(MaterialPageRoute(
-                                      builder: (context) => TripHistoryDetails(
-                                          item: trips[index])));
-                                },
-                              ),
-                              const Padding(
-                                padding: EdgeInsets.all(8.0),
-                                child: Divider(
-                                  color: ColorsConst.grey,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    )
+              )
           ],
-        ),
-      ),
-    );
-    /* body: Column(
+        ));
+  }
+
+  Widget buildTripDetails(
+          Map<dynamic, dynamic> trip, Request request, int index) =>
+      Column(
         children: [
-          Text(itemList.length.toString()),
-
-
-          ListView.builder(
-              shrinkWrap: true,
-              itemCount: itemList.length,
-              scrollDirection: Axis.vertical,
-              itemBuilder: (BuildContext context, int index){
-                final item = itemList[index];
-                return Card(
-                    shadowColor: Colors.transparent,
-                    elevation: 0,
-                    child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: ListTile(
-                    title : Text(itemList[index].pickUp.toString(),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                      ),),
-                    subtitle:RichText(
-                        text: const TextSpan(
-                            text: "4th April , 2023 at 10:37AM",
-                            style: TextStyle(
-                                fontWeight: FontWeight.normal,
-                                fontFamily: 'Poppins',
-                                color: Colors.black,
-                                fontSize: 15),
-                            children: <TextSpan>[
-                              TextSpan(
-                                  text: "\nFinished",
-                                  style: TextStyle(
-                                      fontFamily: 'Poppins',
-                                      color: Colors.green,
-                                      fontSize: 15)
-                              )
-                            ])
-                    ),
-                    trailing: const Icon(Icons.arrow_forward),
-                    onTap: (){
-                      Navigator.of(context).push(MaterialPageRoute(
-                        builder: (context) => TripHistoryDetails(item:item),
-                      ));
-                    },
+          const SizedBox(
+            height: 15,
+          ),
+          ListTile(
+            title: Text(
+              trip['destinationLocation'],
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w100,
+              ),
+            ),
+            subtitle: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  height: 10,
+                ),
+                Text(
+                  '${trip['date']} at ${trip['time']}',
+                  style: const TextStyle(
+                    fontSize: 14,
                   ),
                 ),
-
-                );
-              }
-
-              ),
+                Text(
+                  request.status.toUpperCase(),
+                  style: TextStyle(
+                      fontSize: 14,
+                      color: (request.status == 'finished')
+                          ? Colors.greenAccent
+                          : Colors.redAccent),
+                ),
+              ],
+            ),
+            trailing: const Icon(Icons.navigate_next),
+            onTap: () {
+              Navigator.of(context).push(MaterialPageRoute(
+                builder: (context) => MyBookedTrips(
+                  request: finishedRequests[index],
+                ),
+              ));
+            },
+          ),
+          const Padding(
+            padding: EdgeInsets.all(8.0),
+            child: Divider(
+              color: ColorsConst.grey,
+            ),
+          ),
         ],
-      ),*/
-  }
+      );
 }

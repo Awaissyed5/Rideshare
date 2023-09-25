@@ -5,14 +5,14 @@ import 'package:flutter/material.dart';
 
 class ChatScreen extends StatefulWidget {
   final String currentUserId;
-  final String userId;
-  final String userName;
+  final String driverId;
+  final String driverName;
 
   const ChatScreen({
     Key? key,
     required this.currentUserId,
-    required this.userId,
-    required this.userName,
+    required this.driverId,
+    required this.driverName,
   }) : super(key: key);
 
   @override
@@ -27,7 +27,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Chat with User'),
+        title: Text('Chat with Driver'),
       ),
       body: Column(
         children: [
@@ -35,7 +35,7 @@ class _ChatScreenState extends State<ChatScreen> {
             child: StreamBuilder<QuerySnapshot>(
               stream: FirebaseFirestore.instance
                   .collection('messages')
-                  .where('senderId', whereIn: [widget.userId, currentUserId])
+                  .where('senderId', whereIn: [currentUserId, widget.driverId])
                   .orderBy('timestamp', descending: true)
                   .snapshots(),
               builder: (context, snapshot) {
@@ -57,7 +57,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
                     if (message['senderId'] == currentUserId) {
                       // Sent message by current user
-                      final userName = 'Send To: ${message['userName']}';
+                      final userName = 'Send To: ${message['DriverName']}';
 
                       return ListTile(
                         title: Text(message['text']),
@@ -117,8 +117,8 @@ class _ChatScreenState extends State<ChatScreen> {
     final messageRef = FirebaseFirestore.instance.collection('messages');
     messageRef.add({
       'senderId': widget.currentUserId,
-      'receiverId': widget.userId,
-      'userName': widget.userName,
+      'receiverId': widget.driverId,
+      'DriverName': widget.driverName,
       'text': messageText,
       'timestamp': FieldValue.serverTimestamp(),
     });

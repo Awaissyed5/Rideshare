@@ -93,7 +93,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
 
   saveTripInfo() async {
     Map driverTripMap = {};
-    FirebaseDatabase.instance.reference().child("trips").push().set({
+    FirebaseDatabase.instance.ref().child("trips").push().set({
       "pick_up": pickUpLocationEditingController.text.trim(),
       "drop_off": dropOffLocationEditingController.text.trim(),
       "seats": _selectedSeats.toString(),
@@ -148,6 +148,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
       body: Builder(builder: (BuildContext newContext) {
         return Stack(
           children: [
+            // ignore: sized_box_for_whitespace
             Container(
               height: MediaQuery.of(context).size.height,
               child: GoogleMap(
@@ -235,7 +236,7 @@ class _HomeTabPageState extends State<HomeTabPage> {
                                               focusedBorder:
                                                   UnderlineInputBorder(
                                                       borderSide: BorderSide(
-                                                          color: Colors
+                                                          color: ColorsConst
                                                               .greenAccent)),
                                               label: Text('Drop Off'),
                                               labelStyle: TextStyle(

@@ -1,26 +1,13 @@
-import 'package:rideshare_driver/Models/address.dart';
-import 'package:rideshare_driver/Models/direction_details.dart';
-import 'package:rideshare_driver/Views/assistants/request_assistant.dart';
-import 'package:rideshare_driver/Views/data%20handler/app_data.dart';
-import 'package:rideshare_driver/config_map.dart';
+import 'package:rideshare/Models/address.dart';
+import 'package:rideshare/Models/direction_details.dart';
+import 'package:rideshare/Views/assistants/request_assistant.dart';
+import 'package:rideshare/Views/data%20handler/app_data.dart';
+import 'package:rideshare/config_map.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
 
 class AssistantMethods {
-  static get math => null;
-
-  static double getMarkerRotation(
-      double startLat, double startLng, double endLat, double endLng) {
-    double deltaLng = endLng - startLng;
-    double y = math.sin(deltaLng) * math.cos(endLat);
-    double x = math.cos(startLat) * math.sin(endLat) -
-        math.sin(startLat) * math.cos(endLat) * math.cos(deltaLng);
-    double radians = math.atan2(y, x);
-    double degrees = radians * 180 / math.pi;
-    return degrees;
-  }
-
   static Future<String> searchCoordinateAddress(
       Position position, context) async {
     String placeAddress = "";
