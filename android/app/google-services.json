@@ -6,11 +6,11 @@
     "storage_bucket": "rideshare-d2629.appspot.com"
   },
   "client": [
-        {
+    {
       "client_info": {
-        "mobilesdk_app_id": "1:325107699879:android:71130d3155097d6e594b82",
+        "mobilesdk_app_id": "1:325107699879:android:29f7837d765f06fb594b82",
         "android_client_info": {
-          "package_name": "com.cust.rideshare_driver"
+          "package_name": "com.cust.rideshare"
         }
       },
       "oauth_client": [

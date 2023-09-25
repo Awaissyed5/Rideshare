@@ -1,9 +1,8 @@
-import 'package:rideshare_driver/Constants/styles/colors.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 
 import 'package:fluttertoast/fluttertoast.dart';
-
+import '../Constants/styles/colors.dart';
 import '../global/global.dart';
 import '../splashScreen/splash_screen.dart';
 
@@ -165,6 +164,7 @@ class _CarInfoScreenState extends State<CarInfoScreen> {
                     if (carColorTextEditingController.text.isNotEmpty &&
                         carNumberTextEditingController.text.isNotEmpty &&
                         carModelTextEditingController.text.isNotEmpty &&
+                        // ignore: unrelated_type_equality_checks
                         selectedCarType != Null) {
                       saveCarInfo();
                     }

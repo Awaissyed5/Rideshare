@@ -1,4 +1,4 @@
-package com.cust.rideshare_driver
+package com.cust.rideshare
 
 import io.flutter.embedding.android.FlutterActivity
 
